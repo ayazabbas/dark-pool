@@ -6,8 +6,9 @@ export const config = {
   privateKey: process.env.KEEPER_PRIVATE_KEY || "",
   accountAddress: process.env.KEEPER_ADDRESS || "",
 
-  // Contract
+  // Contracts
   darkpoolAddress: process.env.DARKPOOL_ADDRESS || "",
+  factoryAddress: process.env.FACTORY_ADDRESS || "",
   strkAddress: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
 
   // Market config

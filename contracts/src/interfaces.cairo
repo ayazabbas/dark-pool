@@ -30,3 +30,21 @@ pub trait IDarkPool<TContractState> {
     fn has_user_claimed(self: @TContractState, user: ContractAddress) -> bool;
     fn get_pool_sizes(self: @TContractState) -> (u256, u256, u256); // up, down, total_revealed
 }
+
+#[starknet::interface]
+pub trait IDarkPoolFactory<TContractState> {
+    fn create_market(
+        ref self: TContractState,
+        bet_token: ContractAddress,
+        fixed_escrow: u256,
+        strike_price: i64,
+        strike_price_expo: i32,
+        commit_duration: u64,
+        closed_duration: u64,
+        reveal_duration: u64,
+        fee_collector: ContractAddress,
+    ) -> ContractAddress;
+
+    fn get_market(self: @TContractState, market_id: u64) -> ContractAddress;
+    fn get_market_count(self: @TContractState) -> u64;
+}
