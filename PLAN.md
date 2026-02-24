@@ -738,7 +738,7 @@ interface StoredBet {
 - [ ] **6.6** Salt backup UX: export/import buttons, warning banners
 - [ ] **6.7** Mobile responsive layout
 - [ ] **6.8** README: project overview, setup instructions, architecture diagram, screenshots
-- [ ] **6.9** Deploy frontend (Vercel or GitHub Pages)
+- [ ] **6.9** Deploy frontend: build → systemd service → nginx reverse proxy → SSL (Certbot) at `darkpool.ayazabbas.com`
 - [ ] **6.10** Fix any bugs from E2E testing
 
 **Milestone:** Stable, polished, deployed, ready for demo
