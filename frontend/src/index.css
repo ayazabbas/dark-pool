@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background */
+  --color-background: #06060a;
+  --color-foreground: #e4e4ef;
+
+  /* Surface / Card */
+  --color-surface: #0c0c14;
+  --color-surface-light: #14141e;
+  --color-surface-hover: #1a1a28;
+
+  /* Borders */
+  --color-border: #1e1e2e;
+  --color-border-light: #2a2a3e;
+  --color-ring: #6366f1;
+
+  /* Text */
+  --color-text-primary: #e4e4ef;
+  --color-text-secondary: #6b6b80;
+  --color-text-muted: #484860;
+
+  /* Accent (Indigo) */
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-accent-dim: rgba(99, 102, 241, 0.15);
+
+  /* Status colors */
+  --color-green: #22c55e;
+  --color-green-dim: rgba(34, 197, 94, 0.15);
+  --color-red: #ef4444;
+  --color-red-dim: rgba(239, 68, 68, 0.15);
+  --color-yellow: #eab308;
+  --color-yellow-dim: rgba(234, 179, 8, 0.15);
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle scanline effect for trading terminal feel */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light);
+}
+
+/* Sonner toast overrides */
+[data-sonner-toaster] {
+  --normal-bg: var(--color-surface);
+  --normal-border: var(--color-border);
+  --normal-text: var(--color-text-primary);
+}
+
+/* Glow animations */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
