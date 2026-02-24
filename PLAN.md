@@ -5,7 +5,7 @@
 > **Hackathon:** Starknet RE{DEFINE} — Privacy Track ($9,675 STRK)
 > **Deadline:** Feb 28, 2026 23:59 UTC (~5 days)
 > **Builder:** Ayaz Abbas (@ayazabbas)
-> **Prior art:** [Strike](https://github.com/ayazabbas/strike) — parimutuel prediction market (Solidity/BNB Chain/Pyth/Telegram bot, won $10k at Good Vibes Only hackathon)
+> **Prior art:** [Strike](https://github.com/ayazabbas/strike) — parimutuel prediction market (Solidity/BNB Chain/Pyth, won $10k at Good Vibes Only hackathon)
 
 ---
 
@@ -31,29 +31,30 @@ DarkPool is a binary UP/DOWN parimutuel prediction market where **both bet direc
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     Telegram Bot (Grammy)                           │
-│  Commands: /start, /help, /settings                                 │
-│  Inline keyboards: Market view, Bet, Reveal, Claim, Wallet         │
-│  Server-managed wallets (starknet.js Account per user)              │
+│                  React Frontend (Vite + Tailwind + shadcn/ui)       │
+│  Wallet: ArgentX / Braavos via starknet-react                       │
+│  State: contract reads via starknet.js + localStorage for salts     │
+│  Pages: Market, My Bets, How It Works                               │
 └────────────────────────┬────────────────────────────────────────────┘
-                         │
+                         │  starknet.js RPC calls
         ┌────────────────┼────────────────┐
         │                │                │
         ▼                ▼                ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────────┐
-│  Keeper Svc  │ │  SQLite DB   │ │  Pyth Hermes API │
-│  - Create    │ │  - Users     │ │  - Price updates  │
-│    markets   │ │  - Bets      │ │  - VAA data       │
-│  - Resolve   │ │  - Salts     │ │  - BTC/USD feed   │
-│  - Finalize  │ │  - Wallets   │ └──────────────────┘
-└──────┬───────┘ └──────────────┘
+┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│  Keeper Svc  │ │  Starknet RPC    │ │  Pyth Hermes API │
+│  (Node.js)   │ │  (Sepolia)       │ │  - Price updates  │
+│  - Create    │ │  - Contract      │ │  - VAA → BB       │
+│    markets   │ │    state reads   │ │  - BTC/USD feed   │
+│  - Resolve   │ │  - Tx submission │ └──────────────────┘
+│  - Finalize  │ └──────────────────┘
+└──────┬───────┘
        │
        ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   Starknet (Sepolia → Mainnet)                      │
 │                                                                     │
 │  ┌─────────────────────────┐    ┌──────────────────────────┐       │
-│  │   DarkPool Contract   │    │   Pyth Oracle Contract   │       │
+│  │   DarkPool Contract     │    │   Pyth Oracle Contract   │       │
 │  │                         │    │   (Sepolia deployed)     │       │
 │  │  commit() ─── escrow    │◄───│   get_price_no_older_    │       │
 │  │  resolve() ── oracle    │    │   than()                 │       │
@@ -65,6 +66,8 @@ DarkPool is a binary UP/DOWN parimutuel prediction market where **both bet direc
 │                                 └──────────────────────────┘       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key:** No backend database. Contract is the source of truth. Salts stored client-side in localStorage (with download backup). Users connect their own wallets and sign transactions directly.
 
 ---
 
@@ -232,104 +235,156 @@ trait IDarkPool<TContractState> {
 
 ---
 
-## 4. Telegram Bot Design
+## 4. Frontend Design (React + Tailwind + shadcn/ui)
 
-### UX Flow (User Perspective)
+### Pages & Layout
+
+Single-page app with a top nav bar and main content area. Dark theme (fits "DarkPool" brand).
+
+**Nav Bar:**
+- Logo + "DarkPool" branding
+- Live BTC price ticker (Pyth Hermes websocket)
+- Connect Wallet button (ArgentX / Braavos)
+- Connected address display
+
+**Main Views:**
 
 ```
-/start → Welcome + Create Wallet
-  │
-  ├── 🎯 Live Market
-  │     Shows: BTC price, strike price, time left, phase, commit count
-  │     Phase: Committing → [Pick UP/DOWN] → [Confirm amount] → Committed ✅
-  │     Phase: Revealing → [Reveal button] → Revealed ✅
-  │     Phase: Finalized → [Claim button] → Payout received 🎉
-  │
-  ├── 💰 My Wallet
-  │     Balance, address, deposit/withdraw
-  │
-  ├── 📊 My Bets
-  │     Active commitments (hidden direction 🔒)
-  │     Past results with P&L
-  │
-  └── ❓ How It Works
-        3-page explainer on sealed betting
+┌─────────────────────────────────────────────────────┐
+│  [DarkPool]          BTC $97,432.15     [Connect]   │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │           LIVE MARKET                        │   │
+│  │                                              │   │
+│  │  Phase: COMMITTING        ⏱ 1:47 remaining  │   │
+│  │  Strike: $97,412.30       Commits: 7 🔒      │   │
+│  │  Escrow: 10 STRK                             │   │
+│  │                                              │   │
+│  │  ┌──────────┐  ┌──────────┐                  │   │
+│  │  │  📈 UP   │  │  📉 DOWN │                  │   │
+│  │  └──────────┘  └──────────┘                  │   │
+│  │                                              │   │
+│  │  Amount: [____] STRK (max 10)                │   │
+│  │  [Seal Your Bet 🔒]                          │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─ My Active Bets ────────────────────────────┐   │
+│  │  Market #42: 🔒 Sealed (reveal in 3:20)     │   │
+│  │  Market #41: ✅ Won +4.2 STRK [Claim]       │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─ How It Works ──────────────────────────────┐   │
+│  │  Collapsible explainer section               │   │
+│  └─────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
 ```
 
-### Bot Commands
+### Component Breakdown
 
-| Command | Handler | Description |
-|---------|---------|-------------|
-| `/start` | `start.ts` | Welcome, auto-create wallet |
-| `/help` | `help.ts` | Quick guide |
-| `/settings` | `settings.ts` | Quick-bet amounts |
+| Component | Description |
+|-----------|-------------|
+| `ConnectButton` | starknet-react wallet connection (ArgentX/Braavos) |
+| `PriceTicker` | Live BTC/USD price from Pyth Hermes websocket |
+| `MarketCard` | Current market phase, timer, strike price, commit count |
+| `BetPanel` | UP/DOWN buttons, amount input, commit action |
+| `RevealPanel` | Shows when Revealing phase — one-click reveal |
+| `ClaimPanel` | Shows when Finalized — payout amount + claim button |
+| `MyBets` | List of user's active and historical bets |
+| `TxStatus` | Toast notifications for pending/confirmed/failed txs |
+| `HowItWorks` | Accordion/collapsible explainer |
+| `PhaseIndicator` | Visual pipeline: Commit → Closed → Resolved → Reveal → Done |
 
-### Callback Handlers
+### Wallet Integration (starknet-react)
 
-| Callback Data | Handler | Action |
-|--------------|---------|--------|
-| `live` / `markets` | `markets.ts` | Show current market |
-| `bet:<side>` | `betting.ts` | Start commit flow |
-| `confirm:<side>:<amount>` | `betting.ts` | Execute commit tx |
-| `reveal` | `reveal.ts` | Execute reveal tx |
-| `claim` | `claim.ts` | Execute claim tx |
-| `wallet` | `wallet.ts` | Show wallet info |
-| `mybets` | `mybets.ts` | Show bet history |
-| `howitworks` | `howitworks.ts` | Explainer pages |
-
-### Server-Managed Wallets (starknet.js)
-
-Strike used Privy for EVM server wallets. For Starknet, we use **starknet.js Account** directly:
+Users connect their own ArgentX or Braavos browser wallet. No server-managed keys.
 
 ```typescript
-import { Account, RpcProvider, ec, stark } from 'starknet';
+import { useAccount, useConnect, useContract } from '@starknet-react/core';
 
-// Generate keypair for new user
-const privateKey = stark.randomAddress();
-const publicKey = ec.starkCurve.getStarkKey(privateKey);
+// Connect wallet
+const { connect, connectors } = useConnect();
 
-// Deploy account (OpenZeppelin Account)
-// Pre-compute address, fund with STRK, deploy
-const account = new Account(provider, address, privateKey);
+// Read contract
+const { data: marketInfo } = useContractRead({
+  address: DARKPOOL_ADDRESS,
+  abi: DARKPOOL_ABI,
+  functionName: 'get_market_info',
+});
+
+// Write contract (user signs via wallet)
+const { writeAsync } = useContractWrite({
+  calls: [approveCall, commitCall],
+});
 ```
 
-Each Telegram user gets:
-1. A Starknet keypair (private key encrypted + stored in DB)
-2. An OpenZeppelin Account contract deployed on their first bet
-3. The bot signs and submits transactions on their behalf
+### Salt Management (Client-Side)
 
-**Security:** Private keys are encrypted at rest with a server-side key. Users can export their key via `/settings` if needed.
-
-### Salt Management
-
-Salts are critical — lose a salt, lose your bet. The bot manages salts server-side:
+Salts are critical — lose a salt, lose your bet. Stored in **localStorage** with backup options:
 
 ```typescript
 // On commit:
 const salt = stark.randomAddress();  // Random felt252
-db.saveSalt(telegramId, marketAddress, salt);
+localStorage.setItem(`darkpool:salt:${marketAddr}:${userAddr}`, salt);
 
 // On reveal:
-const salt = db.getSalt(telegramId, marketAddress);
+const salt = localStorage.getItem(`darkpool:salt:${marketAddr}:${userAddr}`);
 ```
 
-Salts stored in SQLite alongside bet records. Server-managed = no user key management burden.
+**Safety features:**
+- **Backup download:** Button to download all active salts as JSON file
+- **Warning banner:** "Don't clear browser data while you have active bets"
+- **Salt display:** Users can view their salt for manual backup
+- **Import:** Paste a salt to recover a bet if localStorage is lost
+
+### Client-Side Poseidon Hashing
+
+```typescript
+import { hash } from 'starknet';
+
+function computeCommitment(
+  direction: 0 | 1,   // 0=Down, 1=Up
+  amount: bigint,      // in wei
+  salt: string,        // felt252 hex
+  userAddress: string  // felt252 hex
+): string {
+  return hash.computePoseidonHashOnElements([
+    direction,
+    amount.toString(),
+    salt,
+    userAddress,
+  ]);
+}
+```
+
+### Auto-Reveal (Client-Side)
+
+If the user keeps the tab open, the frontend polls for phase changes and auto-submits the reveal transaction when the market enters Revealing phase:
+
+```typescript
+useEffect(() => {
+  if (phase === 'Revealing' && myBet && !myBet.revealed) {
+    autoReveal(myBet.direction, myBet.amount, myBet.salt);
+  }
+}, [phase]);
+```
+
+The wallet popup will appear for the user to approve the reveal tx. If the tab is closed, the user must return and click "Reveal" manually within the reveal window.
 
 ---
 
 ## 5. Keeper Service
 
-Runs alongside the bot (like Strike's keeper):
+Standalone Node.js script that manages the market lifecycle. Runs independently from the frontend.
 
 ```
 ┌─────────────────────────────────────────────┐
 │               Keeper Loop                    │
 │                                              │
 │  Every 5 minutes (aligned to wall clock):    │
-│  1. Create new market                        │
+│  1. Create new market (deploy or call factory)│
 │  2. Check expired markets → resolve()        │
 │  3. Check reveal deadline → finalize()       │
-│  4. Notify bettors to reveal (via bot)       │
 └─────────────────────────────────────────────┘
 ```
 
@@ -339,7 +394,7 @@ Runs alongside the bot (like Strike's keeper):
 T+0:00  ──► Market created (keeper), Committing phase begins
 T+2:30  ──► Commit deadline, Closed phase (no more bets)
 T+5:00  ──► Expiry, keeper calls resolve() with Pyth price
-T+5:00  ──► Revealing phase begins, bot notifies users to reveal
+T+5:00  ──► Revealing phase begins
 T+10:00 ──► Reveal deadline, keeper calls finalize()
 T+10:00 ──► Finalized, users can claim payouts
 ```
@@ -347,20 +402,7 @@ T+10:00 ──► Finalized, users can claim payouts
 **Why 2.5 min commit + 2.5 min closed + 5 min reveal:**
 - Commit window matches Strike's betting window
 - Closed period lets the oracle price diverge from strike (creates the bet)
-- 5-minute reveal window gives users ample time to reveal (bot auto-reveals)
-
-### Auto-Reveal
-
-The bot can auto-reveal for users since it holds their salts. This happens immediately when the market enters Revealing phase:
-
-```typescript
-// Keeper: on phase change to Resolved
-for (const bet of db.getUnrevealedBets(marketAddress)) {
-    await revealBet(bet.walletId, marketAddress, bet.direction, bet.amount, bet.salt);
-}
-```
-
-**This is a major UX win** — users don't need to come back to reveal. The privacy guarantee still holds because reveals only happen after resolution.
+- 5-minute reveal window gives users time to reveal (frontend auto-reveals if tab is open)
 
 ---
 
@@ -375,11 +417,12 @@ for (const bet of db.getUnrevealedBets(marketAddress)) {
 | **Contract libs** | OpenZeppelin Cairo | 0.20.0 |
 | **Hash** | Poseidon (Cairo native) | built-in |
 | **Oracle** | Pyth Network | Pull oracle |
-| **Bot framework** | Grammy | 1.x |
-| **Bot runtime** | Node.js + TypeScript | 22.x |
+| **Frontend** | React + TypeScript (Vite) | 19.x / 6.x |
+| **Styling** | Tailwind CSS + shadcn/ui | 4.x / latest |
+| **Wallet** | starknet-react | latest |
 | **JS SDK** | starknet.js | 6.x |
 | **Pyth client** | @pythnetwork/pyth-starknet-js | latest |
-| **Database** | better-sqlite3 | latest |
+| **Keeper** | Node.js + TypeScript | 22.x |
 | **Bet token** | STRK (ERC-20) | — |
 | **Chain** | Starknet Sepolia (testnet) | — |
 
@@ -460,7 +503,7 @@ dark-pool/
 │   ├── Scarb.toml
 │   ├── src/
 │   │   ├── lib.cairo                # Module root
-│   │   ├── darkpool.cairo         # Main contract
+│   │   ├── darkpool.cairo           # Main contract
 │   │   ├── types.cairo              # Structs, enums, events
 │   │   ├── hash.cairo               # Poseidon commitment helper
 │   │   └── interfaces.cairo         # Contract interface
@@ -470,33 +513,51 @@ dark-pool/
 │       ├── test_reveal.cairo
 │       ├── test_claim.cairo
 │       └── test_edge_cases.cairo
-├── bot/                             # Telegram bot (TypeScript)
+├── frontend/                        # React + Tailwind + shadcn/ui
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── src/
-│   │   ├── index.ts                 # Bot entry point
-│   │   ├── config.ts                # Environment config
-│   │   ├── keeper.ts                # Market lifecycle manager
-│   │   ├── db/
-│   │   │   └── database.ts          # SQLite schema + queries
-│   │   ├── handlers/
-│   │   │   ├── start.ts             # /start command
-│   │   │   ├── markets.ts           # Market display
-│   │   │   ├── betting.ts           # Commit flow
-│   │   │   ├── reveal.ts            # Reveal flow
-│   │   │   ├── claim.ts             # Claim/refund
-│   │   │   ├── wallet.ts            # Wallet management
-│   │   │   ├── mybets.ts            # Bet history
-│   │   │   ├── help.ts              # Help text
-│   │   │   ├── howitworks.ts        # Explainer
-│   │   │   └── admin.ts             # Admin commands
-│   │   └── services/
-│   │       ├── starknet.ts          # starknet.js interactions
-│   │       ├── wallet.ts            # Account management
-│   │       ├── pyth.ts              # Hermes API + ByteBuffer
-│   │       ├── commitment.ts        # Poseidon hash (client-side)
-│   │       └── notifications.ts     # User notifications
-│   └── data/                        # SQLite DB (gitignored)
+│   ├── vite.config.ts
+│   ├── tailwind.config.ts
+│   ├── components.json              # shadcn/ui config
+│   ├── index.html
+│   ├── public/
+│   └── src/
+│       ├── main.tsx                 # Entry point
+│       ├── App.tsx                  # Root layout + routes
+│       ├── lib/
+│       │   ├── starknet.ts          # Provider config, contract ABIs
+│       │   ├── commitment.ts        # Poseidon hash computation
+│       │   ├── salts.ts             # localStorage salt management
+│       │   ├── pyth.ts              # Hermes API + price fetching
+│       │   └── constants.ts         # Addresses, feed IDs, config
+│       ├── hooks/
+│       │   ├── useMarket.ts         # Market state polling
+│       │   ├── useMyBets.ts         # User's bet history
+│       │   ├── usePhaseTimer.ts     # Countdown timer
+│       │   └── usePythPrice.ts      # Live BTC price
+│       ├── components/
+│       │   ├── ui/                  # shadcn/ui components
+│       │   ├── ConnectButton.tsx    # Wallet connection
+│       │   ├── PriceTicker.tsx      # Live BTC/USD price
+│       │   ├── MarketCard.tsx       # Market info display
+│       │   ├── BetPanel.tsx         # UP/DOWN + amount + commit
+│       │   ├── RevealPanel.tsx      # Reveal action
+│       │   ├── ClaimPanel.tsx       # Claim payout
+│       │   ├── MyBets.tsx           # Bet history list
+│       │   ├── PhaseIndicator.tsx   # Visual phase pipeline
+│       │   ├── TxToast.tsx          # Transaction status toasts
+│       │   └── HowItWorks.tsx       # Explainer accordion
+│       └── providers/
+│           └── StarknetProvider.tsx  # starknet-react provider setup
+├── keeper/                          # Market lifecycle service
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts                 # Keeper entry point
+│       ├── config.ts                # Environment config
+│       └── services/
+│           ├── starknet.ts          # Contract interaction
+│           └── pyth.ts              # Hermes API + ByteBuffer
 ├── scripts/
 │   ├── deploy.ts                    # Deploy contract to Sepolia
 │   ├── create-market.ts             # Manual market creation
@@ -507,57 +568,37 @@ dark-pool/
 
 ---
 
-## 8. Database Schema
+## 8. Client-Side State (localStorage)
 
-```sql
-CREATE TABLE users (
-    telegram_id INTEGER PRIMARY KEY,
-    username TEXT,
-    starknet_address TEXT NOT NULL,
-    encrypted_private_key TEXT NOT NULL,    -- AES-256-GCM encrypted
-    account_deployed BOOLEAN DEFAULT FALSE,
-    created_at TEXT DEFAULT (datetime('now'))
-);
+No backend database. All user state lives in localStorage, keyed by wallet address:
 
-CREATE TABLE bets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    telegram_id INTEGER NOT NULL,
-    market_id TEXT NOT NULL,               -- Contract address
-    direction TEXT NOT NULL,               -- 'up' or 'down'
-    amount TEXT NOT NULL,                  -- Actual bet amount (STRK, decimal string)
-    salt TEXT NOT NULL,                    -- felt252 hex string
-    commitment_hash TEXT NOT NULL,         -- Poseidon hash hex string
-    commit_tx TEXT,                        -- Commit transaction hash
-    reveal_tx TEXT,                        -- Reveal transaction hash
-    claim_tx TEXT,                         -- Claim transaction hash
-    status TEXT DEFAULT 'committed',       -- committed | revealed | claimed | forfeited | refunded
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
-);
+```typescript
+// Salt storage (critical — lose this, lose your bet)
+interface StoredBet {
+  marketAddress: string;
+  direction: 0 | 1;      // 0=Down, 1=Up
+  amount: string;         // wei string
+  salt: string;           // felt252 hex
+  commitmentHash: string; // Poseidon hash hex
+  commitTx?: string;      // tx hash
+  revealTx?: string;
+  claimTx?: string;
+  status: 'committed' | 'revealed' | 'claimed' | 'forfeited';
+  timestamp: number;
+}
 
-CREATE TABLE markets (
-    address TEXT PRIMARY KEY,
-    market_id INTEGER,
-    phase TEXT NOT NULL,                   -- committing | closed | resolved | revealing | finalized | cancelled
-    strike_price TEXT,
-    resolution_price TEXT,
-    outcome TEXT,                          -- 'up' | 'down' | null
-    start_time INTEGER,
-    commit_deadline INTEGER,
-    expiry_time INTEGER,
-    reveal_deadline INTEGER,
-    commit_count INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE user_settings (
-    telegram_id INTEGER PRIMARY KEY,
-    quick_bet_1 TEXT NOT NULL DEFAULT '1',
-    quick_bet_2 TEXT NOT NULL DEFAULT '5',
-    quick_bet_3 TEXT NOT NULL DEFAULT '10',
-    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
-);
+// localStorage keys:
+// darkpool:bets:<walletAddress>       → StoredBet[]
+// darkpool:settings:<walletAddress>   → { quickBets: [1, 5, 10] }
 ```
+
+**Safety features:**
+- ⚠️ Warning banner when user has unrevealed bets: "Don't clear browser data!"
+- 📥 "Export Salts" button → downloads JSON backup of all active bets
+- 📤 "Import Salts" → restore from backup file
+- 🔒 Salt is displayed in bet detail view for manual copying
+
+**Contract is source of truth** for market state, commitments, reveals, and pool sizes. localStorage only stores secrets (salts, directions, amounts) that the user needs for reveal.
 
 ---
 
@@ -642,64 +683,65 @@ CREATE TABLE user_settings (
 
 **Milestone:** All contract logic complete, all edge cases tested
 
-### Phase 4 — Deploy + Bot Scaffold (Day 3: Feb 26)
-**Goal:** Contract on Sepolia, bot serving /start
+### Phase 4 — Deploy + Frontend Scaffold (Day 3: Feb 26)
+**Goal:** Contract on Sepolia, React app connecting to it
 
 **Tasks:**
 - [ ] **4.1** Deploy contract to Starknet Sepolia via sncast
 - [ ] **4.2** Verify on Starkscan/Voyager
-- [ ] **4.3** Test commit + resolve + reveal + claim on Sepolia manually
-- [ ] **4.4** Scaffold bot: Grammy + TypeScript + better-sqlite3
-- [ ] **4.5** Implement wallet service (starknet.js Account creation + encryption)
-- [ ] **4.6** Implement commitment service (Poseidon hashing client-side)
-- [ ] **4.7** Implement Starknet service (contract interaction wrappers)
-- [ ] **4.8** Implement Pyth service (Hermes API + ByteBuffer conversion)
-- [ ] **4.9** Implement `/start` → wallet creation → main menu
-- [ ] **4.10** Create keeper service scaffold (market creation loop)
+- [ ] **4.3** Test commit + resolve + reveal + claim on Sepolia manually (via sncast CLI)
+- [ ] **4.4** Scaffold frontend: `npm create vite@latest -- --template react-ts`
+- [ ] **4.5** Install + configure Tailwind CSS 4 + shadcn/ui
+- [ ] **4.6** Set up starknet-react provider (StarknetConfig, RPC provider, connectors)
+- [ ] **4.7** Build ConnectButton component (ArgentX / Braavos)
+- [ ] **4.8** Implement `lib/commitment.ts` — Poseidon hashing via starknet.js
+- [ ] **4.9** Implement `lib/salts.ts` — localStorage salt management + export/import
+- [ ] **4.10** Implement `lib/starknet.ts` — contract ABI + read/write helpers
+- [ ] **4.11** Scaffold keeper: Node.js script with market creation + resolution loop
 
-**Milestone:** Bot running, wallet creation works, contract on Sepolia
+**Milestone:** Frontend connects wallet, reads contract state, contract on Sepolia
 
-### Phase 5 — Bot Core Flows (Day 4: Feb 27)
-**Goal:** Full betting flow through Telegram
+### Phase 5 — Frontend Core Flows + Keeper (Day 4: Feb 27)
+**Goal:** Full betting flow through the web UI
 
 **Tasks:**
-- [ ] **5.1** Implement market display handler (live market view with timer + phase + commit count)
-- [ ] **5.2** Implement commit flow:
-  - User picks UP/DOWN
-  - User confirms amount (quick-bet buttons + custom)
-  - Bot generates salt, computes Poseidon hash
-  - Bot approves STRK + calls commit() on user's behalf
-  - Shows confirmation with tx link
-- [ ] **5.3** Implement reveal flow:
-  - Bot detects Revealing phase
-  - Auto-reveals all committed users (since bot holds salts)
-  - Shows reveal confirmation
-- [ ] **5.4** Implement claim flow:
-  - Bot detects Finalized phase
-  - Shows payout amount
-  - User taps Claim → bot calls claim()
-  - Shows result with tx link
-- [ ] **5.5** Implement My Bets page (active + history)
-- [ ] **5.6** Implement wallet page (balance, deposit address)
-- [ ] **5.7** Implement How It Works explainer (sealed betting concept)
-- [ ] **5.8** Implement keeper: create markets at 5-min boundaries, resolve, finalize
-- [ ] **5.9** Implement notifications: alert users when reveal phase starts, when payout ready
+- [ ] **5.1** Implement `usePythPrice` hook — live BTC/USD price from Hermes API
+- [ ] **5.2** Implement `useMarket` hook — polls contract for market state, phase, timers
+- [ ] **5.3** Build `MarketCard` — phase indicator, strike price, countdown timer, commit count
+- [ ] **5.4** Build `BetPanel` — UP/DOWN selection, amount input (slider or quick buttons), commit action:
+  - Generate salt → compute Poseidon hash → approve STRK → call commit()
+  - Save salt + bet details to localStorage
+  - Show tx confirmation toast with explorer link
+- [ ] **5.5** Build `RevealPanel` — one-click reveal when phase is Revealing:
+  - Load salt from localStorage → call reveal(direction, amount, salt)
+  - Auto-reveal if tab is open (useEffect on phase change)
+  - Show tx confirmation
+- [ ] **5.6** Build `ClaimPanel` — payout display + claim button when Finalized:
+  - Calculate estimated payout from pool sizes
+  - Call claim() → show result with tx link
+- [ ] **5.7** Build `MyBets` — list of user's bets from localStorage + contract state
+- [ ] **5.8** Build `PriceTicker` — live BTC price in nav bar
+- [ ] **5.9** Build `HowItWorks` — collapsible accordion explaining sealed betting
+- [ ] **5.10** Implement keeper: create markets at 5-min boundaries, resolve with Pyth, finalize after reveal deadline
 
-**Milestone:** Full flow working: commit → auto-reveal → claim, via Telegram
+**Milestone:** Full flow working: connect wallet → commit → reveal → claim
 
 ### Phase 6 — Integration Testing + Polish (Day 4-5: Feb 27-28)
 **Goal:** E2E tested, polished, demo-ready
 
 **Tasks:**
-- [ ] **6.1** E2E test: 2+ users, both outcomes, payout verification
-- [ ] **6.2** E2E test: forfeiture (user doesn't reveal)
+- [ ] **6.1** E2E test: 2+ wallets, both outcomes, payout verification
+- [ ] **6.2** E2E test: forfeiture (don't reveal, verify escrow forfeited)
 - [ ] **6.3** E2E test: one-sided market → cancellation
-- [ ] **6.4** UI polish: loading states, error handling, timer formatting
-- [ ] **6.5** Privacy indicators in UI (🔒 icons, "Your bet is sealed" messages)
-- [ ] **6.6** README: project overview, setup instructions, architecture diagram
-- [ ] **6.7** Fix any bugs from E2E testing
+- [ ] **6.4** UI polish: loading spinners, error toasts, timer formatting, dark theme tuning
+- [ ] **6.5** Privacy indicators (🔒 icons, "Your bet is sealed" messages, phase pipeline visualization)
+- [ ] **6.6** Salt backup UX: export/import buttons, warning banners
+- [ ] **6.7** Mobile responsive layout
+- [ ] **6.8** README: project overview, setup instructions, architecture diagram, screenshots
+- [ ] **6.9** Deploy frontend (Vercel or GitHub Pages)
+- [ ] **6.10** Fix any bugs from E2E testing
 
-**Milestone:** Stable, polished, ready for demo
+**Milestone:** Stable, polished, deployed, ready for demo
 
 ### Phase 7 — Submission (Day 5: Feb 28)
 **Goal:** Submitted to DoraHacks before 23:59 UTC
@@ -707,11 +749,12 @@ CREATE TABLE user_settings (
 **Tasks:**
 - [ ] **7.1** Record demo video (3 min max):
   - Intro: "Prediction markets leak your positions. DarkPool seals them."
-  - Show two users committing hidden bets
-  - Show market resolving via Pyth oracle
-  - Show auto-reveal (positions revealed after outcome known)
+  - Show connecting wallet, live BTC price, market view
+  - Show two browser windows: two users committing hidden bets (sealed UI)
+  - Show Starkscan: commitments look identical (same escrow, opaque hashes)
+  - Show market resolving via Pyth oracle, phase transition
+  - Show reveals — positions finally visible after outcome known
   - Show winner claiming payout
-  - Show Starkscan: commitments look identical until reveal
   - Closing: "No front-running. No herding. Just conviction."
 - [ ] **7.2** Write 500-word project description
 - [ ] **7.3** Final test on Sepolia
@@ -740,9 +783,9 @@ CREATE TABLE user_settings (
 | Parimutuel payout + edge cases | 3 |
 | Reveal verification + forfeiture | 2-3 |
 | Starknet Sepolia deployment | 4 |
-| Telegram bot: commit + reveal + claim | 5 |
-| Auto-reveal (server holds salts) | 5 |
-| Keeper: market creation + resolution | 5 |
+| React frontend: connect + commit + reveal + claim | 4-5 |
+| Client-side salt management + backup | 4-5 |
+| Keeper: market creation + resolution + finalization | 5 |
 | Demo video + submission | 7 |
 
 ### Stretch Goals (If Time Permits)
@@ -756,7 +799,7 @@ CREATE TABLE user_settings (
 
 ### Out of Scope
 
-Mainnet deploy, tokenomics, AMM/orderbook, cross-chain, AI, mobile app, frontend web UI
+Mainnet deploy, tokenomics, AMM/orderbook, cross-chain, AI, mobile app, Telegram bot
 
 ---
 
@@ -767,8 +810,8 @@ Mainnet deploy, tokenomics, AMM/orderbook, cross-chain, AI, mobile app, frontend
 | Cairo learning curve (Ayaz new to it) | 🔴 High | Adapt from previous private-strike research; comprehensive Cairo notes in plan |
 | Pyth ByteBuffer integration on Starknet | 🔴 High | Test in Phase 2; admin fallback price if Pyth fails |
 | starknet.js Poseidon compat with Cairo | 🔴 High | Test hash matching in Phase 1 Task 1.8 BEFORE building more |
-| Server wallet security | 🟡 Medium | AES-256-GCM encryption; keys never logged; export option |
-| Account deployment gas | 🟡 Medium | Pre-fund deployer; batch deploy if needed |
+| Salt loss (user clears localStorage) | 🟡 Medium | Export/import backup, warning banners, salt display in UI |
+| User forgets to reveal (tab closed) | 🟡 Medium | Clear phase indicator, countdown urgency UI, escrow forfeiture warning |
 | 5-day timeline | 🔴 High | Reuse Strike patterns; AI coding agents for boilerplate |
 | Starknet Sepolia stability | 🟡 Medium | Have local devnet as fallback |
 
@@ -782,9 +825,10 @@ Mainnet deploy, tokenomics, AMM/orderbook, cross-chain, AI, mobile app, frontend
 | Hash function | Poseidon (not Pedersen) | 5x cheaper in Cairo, STARK-native |
 | Amount privacy | Fixed escrow | All commits look identical on-chain |
 | Oracle | Pyth Network | Pull oracle, deployed on Starknet, Ayaz works at Pyth's parent co |
-| Interface | Telegram bot (not web) | Matches Strike UX, no wallet extension needed |
-| Wallet management | Server-side (starknet.js) | No wallet popups, 1-tap betting, manages salts |
-| Auto-reveal | Yes (bot holds salts) | Users don't need to return; privacy intact (after resolution) |
+| Interface | React web app | Better UX for market visualization, wallet connect standard, demo-friendly |
+| Wallet | ArgentX / Braavos (starknet-react) | User-controlled, no custodial risk, standard Starknet UX |
+| Salt storage | Client-side (localStorage) | No server trust needed; export/import backup for safety |
+| Auto-reveal | Client-side (if tab open) | Frontend polls phase + auto-submits reveal; manual fallback |
 | Bet token | STRK | Native gas token, faucet available on Sepolia |
 | Contract pattern | Single contract (no factory) | MVP simplicity; factory is stretch goal |
 | Phase ordering | Commit → Resolve → Reveal | Prevents strategic non-revelation |
