@@ -86,8 +86,61 @@ npm run dev                    # Run keeper with ts-node
 7. **`#[feature("deprecated-starknet-consts")]`** needed for `contract_address_const` in tests.
 
 ## Frontend Notes
-- starknet-react for wallet connection (ArgentX/Braavos)
+- starknet-react v5 for wallet connection (ArgentX/Braavos)
 - Salts stored in localStorage with export/import backup
-- Dark theme, "DarkPool" branding
+- Dark trading terminal aesthetic — shadcn/ui + Tailwind CSS 4
+- shadcn/ui components: Button, Card, Input, Badge, Accordion (in `src/components/ui/`)
+- Sonner for transaction toast notifications
 - Single-page app: market view, bet panel, my bets, how it works
 - Auto-reveal if tab is open when phase changes to Revealing
+- `cn()` utility in `src/lib/utils.ts` for Tailwind class merging
+- Contract ABI copied to `src/lib/abi.json`
+
+## Frontend Architecture
+```
+src/
+├── components/         # UI components
+│   ├── ui/             # shadcn/ui primitives (Button, Card, Input, Badge, Accordion)
+│   ├── ConnectButton   # Wallet connect/disconnect
+│   ├── PriceTicker     # Live BTC/USD from Pyth
+│   ├── MarketCard      # Market state + phase indicator
+│   ├── BetPanel        # Direction + amount + commit
+│   ├── RevealPanel     # One-click reveal + auto-reveal
+│   ├── ClaimPanel      # Payout display + claim/refund
+│   ├── MyBets          # Bet history + backup/import
+│   ├── HowItWorks      # Accordion explainer
+│   └── PhaseIndicator  # Visual phase pipeline
+├── hooks/              # Custom React hooks
+│   ├── useMarket       # Poll contract state (5s)
+│   ├── usePythPrice    # Fetch BTC price (10s)
+│   ├── usePhaseTimer   # Countdown timer
+│   └── useMyBets       # localStorage bets
+├── lib/                # Utilities
+│   ├── abi.json        # Contract ABI
+│   ├── commitment.ts   # Poseidon hash via starknet.js
+│   ├── salts.ts        # localStorage salt management
+│   ├── constants.ts    # Addresses, config
+│   ├── starknet.ts     # RPC provider, contract helpers
+│   └── utils.ts        # cn() class merging
+└── providers/
+    └── StarknetProvider # starknet-react config (Sepolia)
+```
+
+## Keeper Notes
+- Polls market phase every 30s
+- Resolves markets: fetches BTC/USD from Pyth Hermes → calls resolve(price, expo)
+- Finalizes markets after reveal deadline → calls finalize()
+- Does NOT create new markets (single-contract MVP)
+- Config via env vars: STARKNET_RPC_URL, KEEPER_PRIVATE_KEY, KEEPER_ADDRESS, DARKPOOL_ADDRESS
+
+## Deploy Script
+- `scripts/deploy.ts` — declares + deploys DarkPool contract to Sepolia
+- Uses starknet.js 6.x (Account, RpcProvider)
+- Config via env vars: STARKNET_RPC_URL, DEPLOYER_PRIVATE_KEY, DEPLOYER_ADDRESS
+
+## Phase Status
+- **Phase 1-3 (Contracts):** Complete — 50 tests passing
+- **Phase 4 (Deploy + Frontend Scaffold):** Complete — frontend builds, all components + shadcn/ui
+- **Phase 5 (Frontend Core + Keeper):** Complete — full betting flow, keeper service
+- **Phase 6 (Integration + Polish):** Not started
+- **Phase 7 (Submission):** Not started
