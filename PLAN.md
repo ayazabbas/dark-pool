@@ -1,4 +1,4 @@
-# DarkStrike — Implementation Plan
+# DarkPool — Implementation Plan
 
 > Sealed prediction markets on Starknet — bet with ZK commitments so positions and amounts stay hidden until resolution.
 >
@@ -11,7 +11,7 @@
 
 ## 1. Concept
 
-DarkStrike is a binary UP/DOWN parimutuel prediction market where **both bet direction AND amount are hidden** using a Poseidon commit-reveal scheme until after market resolution.
+DarkPool is a binary UP/DOWN parimutuel prediction market where **both bet direction AND amount are hidden** using a Poseidon commit-reveal scheme until after market resolution.
 
 **Problem:** On-chain prediction markets (Polymarket, Strike, etc.) expose all positions publicly. This enables:
 - **Front-running:** Whales move odds, others pile on
@@ -21,7 +21,7 @@ DarkStrike is a binary UP/DOWN parimutuel prediction market where **both bet dir
 
 **Solution:** Sealed betting rounds. Users commit Poseidon hashes of their bets. Nobody — not even the contract — knows the pool split until after the oracle determines the outcome. Only then do users reveal their positions and claim payouts.
 
-**Why this matters:** Sealed-bid mechanisms are proven to produce more honest pricing in auction theory. DarkStrike applies the same principle to prediction markets — creating true price discovery from independent conviction.
+**Why this matters:** Sealed-bid mechanisms are proven to produce more honest pricing in auction theory. DarkPool applies the same principle to prediction markets — creating true price discovery from independent conviction.
 
 **Why Starknet:** Native STARK-field Poseidon hash is dirt cheap (~600 cells, ~20μs). "Private prediction market" is **explicitly listed** as a suggested project on the hackathon page. Cairo's native hash primitives make commit-reveal a natural fit without external ZK tooling.
 
@@ -53,7 +53,7 @@ DarkStrike is a binary UP/DOWN parimutuel prediction market where **both bet dir
 │                   Starknet (Sepolia → Mainnet)                      │
 │                                                                     │
 │  ┌─────────────────────────┐    ┌──────────────────────────┐       │
-│  │   DarkStrike Contract   │    │   Pyth Oracle Contract   │       │
+│  │   DarkPool Contract   │    │   Pyth Oracle Contract   │       │
 │  │                         │    │   (Sepolia deployed)     │       │
 │  │  commit() ─── escrow    │◄───│   get_price_no_older_    │       │
 │  │  resolve() ── oracle    │    │   than()                 │       │
@@ -202,7 +202,7 @@ If a user commits but doesn't reveal by reveal_deadline:
 
 ```cairo
 #[starknet::interface]
-trait IDarkStrike<TContractState> {
+trait IDarkPool<TContractState> {
     // Phase: Committing
     fn commit(ref self: TContractState, commitment_hash: felt252);
 
@@ -402,7 +402,7 @@ BTC/USD:  0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
 
 ```toml
 [package]
-name = "darkstrike"
+name = "darkpool"
 version = "0.1.0"
 edition = "2024_07"
 
@@ -453,14 +453,14 @@ let price = pyth.get_price_no_older_than(self.price_feed_id.read(), MAX_PRICE_AG
 ## 7. Project Structure
 
 ```
-dark-strike/
+dark-pool/
 ├── PLAN.md                          # This file
 ├── README.md                        # Project overview + setup
 ├── contracts/                       # Cairo smart contracts
 │   ├── Scarb.toml
 │   ├── src/
 │   │   ├── lib.cairo                # Module root
-│   │   ├── darkstrike.cairo         # Main contract
+│   │   ├── darkpool.cairo         # Main contract
 │   │   ├── types.cairo              # Structs, enums, events
 │   │   ├── hash.cairo               # Poseidon commitment helper
 │   │   └── interfaces.cairo         # Contract interface
@@ -706,7 +706,7 @@ CREATE TABLE user_settings (
 
 **Tasks:**
 - [ ] **7.1** Record demo video (3 min max):
-  - Intro: "Prediction markets leak your positions. DarkStrike seals them."
+  - Intro: "Prediction markets leak your positions. DarkPool seals them."
   - Show two users committing hidden bets
   - Show market resolving via Pyth oracle
   - Show auto-reveal (positions revealed after outcome known)
@@ -798,7 +798,7 @@ Mainnet deploy, tokenomics, AMM/orderbook, cross-chain, AI, mobile app, frontend
 Per RE{DEFINE} hackathon (DoraHacks, deadline Feb 28, 23:59 UTC):
 
 - [ ] Working contract on Starknet Sepolia (or mainnet)
-- [ ] Public GitHub repo: https://github.com/ayazabbas/dark-strike
+- [ ] Public GitHub repo: https://github.com/ayazabbas/dark-pool
 - [ ] Demo video (3 min max)
 - [ ] 500-word project description
 - [ ] Track: **Privacy**
