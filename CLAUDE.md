@@ -37,6 +37,8 @@ cd frontend/
 npm install                    # Install deps
 npm run dev                    # Dev server (Vite)
 npm run build                  # Production build
+npm test                       # Run Playwright E2E tests
+npm run test:ui                # Run Playwright with UI
 ```
 
 ## Keeper Commands
@@ -47,10 +49,13 @@ npm run dev                    # Run keeper with ts-node
 ```
 
 ## Key Addresses (Starknet Sepolia)
+- **DarkPool Contract:** `0x00dbb9c226a1d12e1f33a94b56af49b81e7ec9e7f3f405ec1940146c6e5e22ab`
+- **DarkPool Class Hash:** `0xd644a2443899ba2c5aa63c038c55b0f61fda9f36016d9af89fd718f0ba0ee4`
 - STRK: `0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d`
 - ETH: `0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7`
 - Pyth: `0x07f2b07b6b5365e7ee055bda4c0ecabd867e6d3ee298d73aea32b027667186d6`
 - BTC/USD Feed: `0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43`
+- Deployer/Owner: `0x03b55e8bdead926d57cd3c2bb69cfac4b0149ea1ba243e0fecf2e3b1f9a18c5d`
 
 ## Critical Design Decisions
 1. **Poseidon hash:** `poseidon(direction, amount, salt, user_address)` — must match `starknet.js hash.computePoseidonHashOnElements()`
@@ -70,11 +75,15 @@ npm run dev                    # Run keeper with ts-node
 - Client-side: `@pythnetwork/pyth-starknet-js` for VAA → ByteBuffer conversion
 
 ## Testing
-- Use snforge for contract tests
+- Use snforge for contract tests (50 tests)
 - Mock ERC-20 token for STRK in tests (OpenZeppelin ERC20Component)
 - No on-chain Pyth — resolve() is owner-only, accepts (price: i64, expo: i32) directly
 - Test Poseidon hash compatibility between Cairo and starknet.js (CRITICAL)
-- 50 tests covering all phases, edge cases, and security invariants
+- Playwright E2E tests for frontend (21 tests in `frontend/e2e/`)
+  - `app.spec.ts` — app loading, nav, footer, wallet buttons
+  - `market-flow.spec.ts` — market card display, phase indicator, bet panel
+  - `salt-management.spec.ts` — localStorage bet storage, export/import
+  - `how-it-works.spec.ts` — accordion expand/collapse, content verification
 
 ## Contract Gotchas (Discovered During Implementation)
 1. **effective_phase() must chain transitions:** Stored phase Committing can advance to Closed then to Cancelled (24h timeout). Without chaining, auto-cancel after resolution deadline was broken.
@@ -142,5 +151,5 @@ src/
 - **Phase 1-3 (Contracts):** Complete — 50 tests passing
 - **Phase 4 (Deploy + Frontend Scaffold):** Complete — frontend builds, all components + shadcn/ui
 - **Phase 5 (Frontend Core + Keeper):** Complete — full betting flow, keeper service
-- **Phase 6 (Integration + Polish):** Not started
+- **Phase 6 (Integration + Polish):** In progress — contract deployed to Sepolia, Playwright E2E tests added (21 passing)
 - **Phase 7 (Submission):** Not started

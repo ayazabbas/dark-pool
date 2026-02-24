@@ -1,5 +1,5 @@
-// Contract address — update after deployment
-export const DARKPOOL_ADDRESS = import.meta.env.VITE_DARKPOOL_ADDRESS || "";
+// Contract address (Starknet Sepolia)
+export const DARKPOOL_ADDRESS = import.meta.env.VITE_DARKPOOL_ADDRESS || "0x00dbb9c226a1d12e1f33a94b56af49b81e7ec9e7f3f405ec1940146c6e5e22ab";
 
 // Starknet Sepolia addresses
 export const STRK_ADDRESS = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
