@@ -16,7 +16,8 @@ export function ConnectButton() {
         className="font-mono gap-2"
       >
         <div className="h-2 w-2 rounded-full bg-green animate-pulse" />
-        {address.slice(0, 6)}...{address.slice(-4)}
+        <span className="hidden sm:inline">{address.slice(0, 6)}...{address.slice(-4)}</span>
+        <span className="sm:hidden">{address.slice(0, 4)}..{address.slice(-3)}</span>
         <LogOut size={14} className="text-text-secondary" />
       </Button>
     );
@@ -33,7 +34,12 @@ export function ConnectButton() {
           className="gap-2"
         >
           <Wallet size={14} />
-          {connector.id === "argentX" ? "ArgentX" : connector.id === "braavos" ? "Braavos" : connector.id}
+          <span className="hidden sm:inline">
+            {connector.id === "argentX" ? "ArgentX" : connector.id === "braavos" ? "Braavos" : connector.id}
+          </span>
+          <span className="sm:hidden">
+            {connector.id === "argentX" ? "Argent" : connector.id === "braavos" ? "Braavos" : connector.id}
+          </span>
         </Button>
       ))}
     </div>

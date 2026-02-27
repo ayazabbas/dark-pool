@@ -3,14 +3,13 @@ import { test, expect } from "@playwright/test";
 test.describe("Market display", () => {
   test("shows loading state initially", async ({ page }) => {
     await page.goto("/");
-    // The app shows a loading spinner while fetching market data
-    // or an error state if contract is unreachable — either is valid
-    const loading = page.getByText("Loading market data...");
+    // The app shows a skeleton loader, error state, or market card
+    const skeleton = page.locator(".skeleton").first();
     const errorCard = page.getByText("No Contract Address");
     const marketCard = page.locator("[class*='card']").filter({ hasText: "BTC/USD" }).first();
     // One of these three states should appear
     await expect(
-      loading.or(errorCard).or(marketCard)
+      skeleton.or(errorCard).or(marketCard)
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -19,7 +18,7 @@ test.describe("Market display", () => {
     // Wait for either market data or error
     await page.waitForTimeout(2000);
     // Phase indicator labels exist in the component
-    const phases = ["COMMIT", "CLOSED", "REVEAL", "DONE"];
+    const phases = ["SEAL", "WAIT", "REVEAL", "DONE"];
     // If market loaded, at least some phase labels should be present
     const marketCard = page.locator("text=BTC/USD");
     if (await marketCard.isVisible()) {

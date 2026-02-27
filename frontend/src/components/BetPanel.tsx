@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { ArrowUp, ArrowDown, Lock, Shield, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Lock, Shield, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 interface BetPanelProps {
@@ -25,6 +25,7 @@ export function BetPanel({ market, onBetPlaced }: BetPanelProps) {
   const [direction, setDirection] = useState<0 | 1 | null>(null);
   const [amount, setAmount] = useState("10");
   const [submitting, setSubmitting] = useState(false);
+  const [sealed, setSealed] = useState(false);
 
   const handleCommit = useCallback(async () => {
     if (!address || direction === null) return;
@@ -67,8 +68,10 @@ export function BetPanel({ market, onBetPlaced }: BetPanelProps) {
         timestamp: Date.now(),
       });
 
+      setSealed(true);
+
       toast.success("Bet sealed!", {
-        description: `${direction === 1 ? "UP" : "DOWN"} — ${amount} STRK`,
+        description: `${direction === 1 ? "UP" : "DOWN"} — ${amount} STRK sealed with Poseidon hash`,
         action: {
           label: "View tx",
           onClick: () => window.open(`https://sepolia.starkscan.co/tx/${result.transaction_hash}`, "_blank"),
@@ -77,21 +80,50 @@ export function BetPanel({ market, onBetPlaced }: BetPanelProps) {
 
       onBetPlaced();
     } catch (err: any) {
-      toast.error("Transaction failed", {
-        description: err.message?.slice(0, 100) || "Unknown error",
-      });
+      const msg = err.message || "Unknown error";
+      if (msg.includes("User abort") || msg.includes("rejected")) {
+        toast.error("Transaction rejected", { description: "You declined the transaction in your wallet." });
+      } else if (msg.includes("insufficient")) {
+        toast.error("Insufficient balance", { description: "You need at least 10 STRK to place a bet." });
+      } else {
+        toast.error("Transaction failed", { description: msg.slice(0, 120) });
+      }
     } finally {
       setSubmitting(false);
     }
   }, [address, direction, amount, sendAsync, onBetPlaced]);
 
   if (market.phase !== "Committing") return null;
+
   if (!address) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
           <Shield size={24} className="mx-auto mb-3 text-text-muted" />
           <p className="text-text-secondary text-sm">Connect your wallet to place a sealed bet</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (sealed) {
+    return (
+      <Card className="border-accent/20 overflow-hidden">
+        <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+        <CardContent className="py-8 text-center space-y-3">
+          <div className="mx-auto w-12 h-12 rounded-full bg-accent-dim flex items-center justify-center">
+            <ShieldCheck size={24} className="text-accent" />
+          </div>
+          <div>
+            <p className="font-bold text-accent text-lg">Your bet is sealed</p>
+            <p className="text-sm text-text-secondary mt-1">
+              Position and amount are hidden on-chain. Nobody can see your bet until reveal phase.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-xs text-text-muted">
+            <Lock size={12} />
+            Secured with Poseidon hash commitment
+          </div>
         </CardContent>
       </Card>
     );
@@ -187,8 +219,9 @@ export function BetPanel({ market, onBetPlaced }: BetPanelProps) {
             <span className="text-text-primary font-mono">{amount} STRK</span>
           </div>
           <div className="pt-1 border-t border-border mt-1">
-            <p className="text-text-muted">
-              Everyone deposits the same escrow. Excess is refunded at reveal. Your direction and amount are hidden.
+            <p className="text-text-muted flex items-start gap-1.5">
+              <Lock size={10} className="shrink-0 mt-0.5" />
+              Everyone deposits the same escrow. Your direction and amount are hidden on-chain until reveal.
             </p>
           </div>
         </div>

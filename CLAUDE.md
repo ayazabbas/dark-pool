@@ -151,5 +151,5 @@ src/
 - **Phase 1-3 (Contracts):** Complete — 50 tests passing
 - **Phase 4 (Deploy + Frontend Scaffold):** Complete — frontend builds, all components + shadcn/ui
 - **Phase 5 (Frontend Core + Keeper):** Complete — full betting flow, keeper service
-- **Phase 6 (Integration + Polish):** In progress — contract deployed to Sepolia, Playwright E2E tests added (21 passing)
+- **Phase 6 (Integration + Polish):** Complete — contract deployed to Sepolia, 21 Playwright E2E tests passing, UI polished (skeleton loaders, timer urgency, error handling), privacy indicators (sealed messages, lock icons, phase pipeline), salt backup UX (warning banners, salt display, prominent export/import), mobile responsive layout, README written
 - **Phase 7 (Submission):** Not started

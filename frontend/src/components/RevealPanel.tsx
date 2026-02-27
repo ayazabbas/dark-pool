@@ -7,7 +7,7 @@ import { DARKPOOL_ADDRESS } from "../lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Eye, CheckCircle, Loader2 } from "lucide-react";
+import { Eye, CheckCircle, Loader2, AlertTriangle, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 interface RevealPanelProps {
@@ -60,9 +60,12 @@ export function RevealPanel({ market, onRevealed }: RevealPanelProps) {
 
       onRevealed();
     } catch (err: any) {
-      toast.error("Reveal failed", {
-        description: err.message?.slice(0, 100) || "Unknown error",
-      });
+      const msg = err.message || "Unknown error";
+      if (msg.includes("User abort") || msg.includes("rejected")) {
+        toast.error("Transaction rejected", { description: "You declined the reveal in your wallet." });
+      } else {
+        toast.error("Reveal failed", { description: msg.slice(0, 120) });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +86,27 @@ export function RevealPanel({ market, onRevealed }: RevealPanelProps) {
   }, [market.phase, bet, autoRevealed, submitting, handleReveal]);
 
   if (market.phase !== "Revealing") return null;
-  if (!address || !bet) return null;
+  if (!address) return null;
+
+  // Salt missing — user committed but we lost the data
+  if (!bet) {
+    return (
+      <Card className="border-red/20">
+        <div className="h-px bg-gradient-to-r from-transparent via-red/50 to-transparent" />
+        <CardContent className="py-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-red shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red">Salt data missing</p>
+              <p className="text-sm text-text-secondary mt-1">
+                Your bet data was not found in this browser. Import your backup from the My Bets section to reveal.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (bet.status === "revealed") {
     return (
@@ -130,6 +153,16 @@ export function RevealPanel({ market, onRevealed }: RevealPanelProps) {
             {bet.direction === 1 ? "UP" : "DOWN"}
           </Badge>
           <span className="font-mono">{(Number(bet.amount) / 1e18).toFixed(2)} STRK</span>
+        </div>
+
+        <div className="flex items-start gap-2 text-xs text-text-muted bg-surface-light/50 rounded-lg p-2.5 border border-border">
+          <Lock size={12} className="shrink-0 mt-0.5" />
+          Your Poseidon commitment will be verified on-chain. Excess escrow is refunded immediately.
+        </div>
+
+        <div className="flex items-start gap-2 text-xs text-red bg-red-dim rounded-lg p-2.5 border border-red/10">
+          <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+          If you don't reveal before the deadline, your escrow will be forfeited.
         </div>
 
         <Button

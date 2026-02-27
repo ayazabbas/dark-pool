@@ -4,7 +4,7 @@ import { usePhaseTimer } from "../hooks/usePhaseTimer";
 import { PhaseIndicator } from "./PhaseIndicator";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Lock, Clock, Users, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { Lock, Clock, Users, TrendingUp, TrendingDown, Zap, ShieldCheck } from "lucide-react";
 
 interface MarketCardProps {
   market: MarketInfo;
@@ -15,6 +15,7 @@ export function MarketCard({ market }: MarketCardProps) {
 
   const showTimer = ["Committing", "Closed", "Revealing"].includes(market.phase);
   const isUrgent = timeLeft > 0 && timeLeft < 30;
+  const isCritical = timeLeft > 0 && timeLeft < 10;
 
   return (
     <Card className="overflow-hidden">
@@ -22,7 +23,7 @@ export function MarketCard({ market }: MarketCardProps) {
       <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
 
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Zap size={18} className="text-accent" />
@@ -56,7 +57,11 @@ export function MarketCard({ market }: MarketCardProps) {
               </div>
               <div
                 className={`text-base font-mono font-bold ${
-                  isUrgent ? "text-red animate-pulse" : "text-yellow"
+                  isCritical
+                    ? "text-red animate-urgent"
+                    : isUrgent
+                      ? "text-red animate-pulse"
+                      : "text-yellow"
                 }`}
               >
                 {formatted}
@@ -86,6 +91,21 @@ export function MarketCard({ market }: MarketCardProps) {
             </div>
           </div>
         </div>
+
+        {/* Privacy status banner */}
+        {market.phase === "Committing" && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-accent bg-accent-dim rounded-lg px-3 py-2 border border-accent/10">
+            <ShieldCheck size={14} className="shrink-0" />
+            <span>All bets are sealed — positions and amounts are hidden on-chain</span>
+          </div>
+        )}
+
+        {market.phase === "Closed" && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-yellow bg-yellow-dim rounded-lg px-3 py-2 border border-yellow/10">
+            <Lock size={14} className="shrink-0" />
+            <span>Betting closed — awaiting oracle resolution. No positions visible.</span>
+          </div>
+        )}
 
         {/* Finalized: show outcome + pools */}
         {market.phase === "Finalized" && (

@@ -54,7 +54,12 @@ export function ClaimPanel({ market, onClaimed }: ClaimPanelProps) {
       });
       onClaimed();
     } catch (err: any) {
-      toast.error("Claim failed", { description: err.message?.slice(0, 100) || "Unknown error" });
+      const msg = err.message || "Unknown error";
+      if (msg.includes("already claimed") || msg.includes("has_claimed")) {
+        toast.error("Already claimed", { description: "You've already claimed your payout for this market." });
+      } else {
+        toast.error("Claim failed", { description: msg.slice(0, 120) });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +92,7 @@ export function ClaimPanel({ market, onClaimed }: ClaimPanelProps) {
       });
       onClaimed();
     } catch (err: any) {
-      toast.error("Refund failed", { description: err.message?.slice(0, 100) || "Unknown error" });
+      toast.error("Refund failed", { description: (err.message || "Unknown error").slice(0, 120) });
     } finally {
       setSubmitting(false);
     }
@@ -163,8 +168,10 @@ export function ClaimPanel({ market, onClaimed }: ClaimPanelProps) {
     const fee = (losePool * 300n) / 10000n;
     const payoutPool = winPool + losePool - fee + market.total_forfeited;
     const userBet = BigInt(bet.amount);
-    const payout = (userBet * payoutPool) / winPool;
-    estimatedPayout = (Number(payout) / 1e18).toFixed(2);
+    if (winPool > 0n) {
+      const payout = (userBet * payoutPool) / winPool;
+      estimatedPayout = (Number(payout) / 1e18).toFixed(2);
+    }
   }
 
   return (

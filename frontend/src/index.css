@@ -103,3 +103,31 @@ body::before {
 .animate-glow {
   animation: glow-pulse 2s ease-in-out infinite;
 }
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-light) 25%,
+    var(--color-surface-hover) 50%,
+    var(--color-surface-light) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Urgent timer flash */
+@keyframes urgent-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-urgent {
+  animation: urgent-flash 0.8s ease-in-out infinite;
+}

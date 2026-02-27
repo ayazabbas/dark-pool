@@ -8,7 +8,7 @@ export function PriceTicker() {
     return (
       <div className="flex items-center gap-2 text-text-secondary text-sm">
         <Activity size={14} className="animate-pulse" />
-        <span className="font-mono">BTC/USD ---</span>
+        <span className="font-mono text-xs sm:text-sm">BTC/USD ---</span>
       </div>
     );
   }
@@ -17,16 +17,16 @@ export function PriceTicker() {
     return (
       <div className="flex items-center gap-2 text-text-muted text-sm">
         <Activity size={14} />
-        <span className="font-mono">BTC/USD --</span>
+        <span className="font-mono text-xs sm:text-sm">BTC/USD --</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex items-center gap-1.5 sm:gap-2 text-sm">
       <Activity size={14} className="text-green" />
-      <span className="font-mono text-text-secondary">BTC</span>
-      <span className="font-mono font-semibold text-green tracking-wide">
+      <span className="font-mono text-text-secondary text-xs sm:text-sm">BTC</span>
+      <span className="font-mono font-semibold text-green tracking-wide text-xs sm:text-sm">
         ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     </div>
